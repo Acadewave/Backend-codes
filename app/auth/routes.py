@@ -6,6 +6,7 @@ from app.auth.models import User, UserCreate, UserUpdate, UserRead
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status, APIRouter
 from typing import List 
+import uuid
 import os
 
 
@@ -25,7 +26,7 @@ auth_backend = AuthenticationBackend(
     get_strategy=get_jwt_strategy,
 )
 
-fastapi_users = FastAPIUsers[User, int](
+fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_db,  
     [auth_backend],  
 )
@@ -53,9 +54,15 @@ auth_router.include_router(
 )
 
 auth_router.include_router(
-    fastapi_users.get_users_router(UserRead, UserCreate),
+    fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"]
+)
+
+auth_router.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"]
 )
 
 def require_role(roles: List[str]):
