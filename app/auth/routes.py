@@ -6,6 +6,8 @@ from app.auth.models import User, UserCreate, UserUpdate, UserRead
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status, APIRouter
 from typing import List 
+from app.db.session import get_db
+from sqlalchemy import text 
 import uuid
 import os
 
@@ -74,3 +76,20 @@ def require_role(roles: List[str]):
             )
         return user
     return role_checker
+
+#Testing db
+@auth_router.get("/test-connection")
+def test_connection(db: Session = Depends(get_db)):
+    try:
+        # Test by running a simple query
+        result = db.execute(text("SELECT 1")).fetchone()  # Use text() to declare the SQL expression
+        return {
+            "success": True,
+            "message": "Successfully connected to the database",
+            "result": result[0] if result else None  # Extract the first item from the result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": str(e)
+        }
