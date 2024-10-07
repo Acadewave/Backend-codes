@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.auth.routes import auth_router
+from app.routers.auth import router
+from app.schemas.auth import Base 
+from app.database import engine
 
 app = FastAPI(
     title="Acadewave",
@@ -20,6 +22,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router)
+Base.metadata.create_all(bind=engine)
+
+app.include_router(router)
 
 
