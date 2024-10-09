@@ -10,13 +10,31 @@ from ..models.auth import UserLogin, settings
 from fastapi.security import OAuth2PasswordBearer
 from ..utils.email import send_verification_email
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+from starlette.config import Config
+from authlib.integrations.starlette_client import OAuth
+
+
+
+config = Config('.env')
+oauth = OAuth(config)
+
+oauth.register(
+    name='google',
+    client_id=config('GOOGLE_CLIENT_ID'),
+    client_secret=config('GOOGLE_CLIENT_SECRET'),
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    authorize_params=None,
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_params=None,
+    refresh_token_url=None,
+    redirect_uri=config('GOOGLE_REDIRECT_URI'),  
+    client_kwargs={'scope': 'openid email profile'}
+)
 
 
 router = APIRouter()
 templates = Jinja2Templates(directory=settings.TEMPLATE_FOLDER)
-
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str):
@@ -26,7 +44,6 @@ def get_user_by_email_or_username(db: Session, login_input: str):
     return db.query(User).filter(
         (User.email == login_input) | (User.username == login_input)
     ).first()
-
 
 
 @router.post("/register", response_model=UserResponse)
@@ -50,7 +67,6 @@ async def register(user: UserCreate, request: Request, db: Session = Depends(get
 
 
     token = create_verification_token(new_user.email)
-
     await send_verification_email(new_user.email, token, request)
 
     return UserResponse(
@@ -61,10 +77,34 @@ async def register(user: UserCreate, request: Request, db: Session = Depends(get
         created_at=new_user.created_at
     )
 
-@router.get("/send-verification-email", response_class=HTMLResponse)
-async def send_verification_email(email:str, token: str, request: Request):
-    verification_link = "http://your-app.com/verify?token=sample_token"
-    return templates.TemplateResponse("email/verification_email.html", {"request": request, "verification_link": verification_link})
+
+@router.get("/auth/login-google")
+async def login_google(request: Request):
+    redirect_uri = request.url_for('auth_google_callback')  # The URL to redirect after successful login
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+@router.get("/auth/callback")
+async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
+    token = await oauth.google.authorize_access_token(request)
+    user_info = await oauth.google.parse_id_token(request, token)
+
+    email = user_info.get('email')
+    name = user_info.get('name')
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        role = "student"
+        user = User(email=email, username=name)  
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    access_token = create_access_token(user.email)
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/login")
 def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
@@ -76,6 +116,12 @@ def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/send-verification-email", response_class=HTMLResponse)
+async def send_verification_email(email:str, token: str, request: Request):
+    verification_link = "http://your-app.com/verify?token=sample_token"
+    return templates.TemplateResponse("email/verification_email.html", {"request": request, "verification_link": verification_link})
+
+
 def verify_verification_token(token: str):
     try:
         token_data = verify_token(token, token_type="verification")
@@ -84,6 +130,7 @@ def verify_verification_token(token: str):
         raise e  
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
+
 
 @router.get("/verify-email")
 def verify_email(token: str, db: Session = Depends(get_db)):
@@ -96,13 +143,9 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 
         if user.is_active:
             raise HTTPException(status_code=400, detail="Email already verified")
-
-        user.is_active = True
-        
+        user.is_active = True       
         db.commit()
-
         return {"msg": "Email verified successfully"}
-
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -112,7 +155,6 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 @router.post("/password-reset-request")
 async def password_reset_request(data: PasswordResetRequest, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter((User.email == data.login) | (User.username == data.login)).first()
-
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -120,18 +162,16 @@ async def password_reset_request(data: PasswordResetRequest, request: Request, d
 
     reset_link = f"http://your-app.com/reset-password?token={reset_token}"
     await send_password_reset_email(user.email, reset_link, request)
-    
     return {"message": "Password reset link sent"}
+
 
 @router.post("/reset-password")
 async def reset_password(data: PasswordResetUpdate, db: Session = Depends(get_db)):
-    token_data = verify_token(data.token, token_type="password_reset")
-    
+    token_data = verify_token(data.token, token_type="password_reset")    
     user = db.query(User).filter(User.email == token_data.email).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
     user.password_hash = hash_password(data.new_password)
     
 
