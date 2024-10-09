@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from ..schemas.auth import User
-from ..models.auth import UserCreate, UserResponse
+from ..models.auth import UserCreate, UserResponse, PasswordResetRequest, PasswordResetUpdate
 from ..database import get_db
-from ..utils.jwt import create_access_token, create_verification_token, verify_token
+from ..utils.jwt import create_access_token, create_verification_token, verify_token, role_required
 from fastapi.security import OAuth2PasswordRequestForm
 from ..models.auth import UserLogin, settings
 from fastapi.security import OAuth2PasswordBearer
@@ -48,6 +48,11 @@ async def register(user: UserCreate, request: Request, db: Session = Depends(get
     db.commit()
     db.refresh(new_user)
 
+
+    token = create_verification_token(new_user.email)
+
+    await send_verification_email(new_user.email, token, request)
+
     return UserResponse(
         id=new_user.id,
         email=new_user.email,
@@ -55,15 +60,6 @@ async def register(user: UserCreate, request: Request, db: Session = Depends(get
         is_active=new_user.is_active,
         created_at=new_user.created_at
     )
-
-    token = create_verification_token(new_user.email)
-
-    await send_verification_email(new_user.email, token, request)
-
-    access_token = create_access_token(new_user.email)
-
-    return {"user": new_user, "access_token": access_token}
-
 
 @router.get("/send-verification-email", response_class=HTMLResponse)
 async def send_verification_email(email:str, token: str, request: Request):
@@ -112,7 +108,33 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+
+@router.post("/password-reset-request")
+async def password_reset_request(data: PasswordResetRequest, request: Request, db: Session = Depends(get_db)):
+    user = db.query(User).filter((User.email == data.login) | (User.username == data.login)).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    reset_token = create_password_reset_token(user.email)
+
+    reset_link = f"http://your-app.com/reset-password?token={reset_token}"
+    await send_password_reset_email(user.email, reset_link, request)
+    
+    return {"message": "Password reset link sent"}
+
+@router.post("/reset-password")
+async def reset_password(data: PasswordResetUpdate, db: Session = Depends(get_db)):
+    token_data = verify_token(data.token, token_type="password_reset")
+    
+    user = db.query(User).filter(User.email == token_data.email).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.password_hash = hash_password(data.new_password)
+    
+
 @router.get("/admin/dashboard")
-def admin_dashboard(db: Session = Depends(get_db), token: str = Depends(OAuth2PasswordBearer(tokenUrl="login"))):
-    role_required("admin")(token=token, db=db)
+def admin_dashboard(db: Session = Depends(get_db), user: User = Depends(role_required("admin"))):
     return {"message": "Welcome to the admin dashboard!"}

@@ -45,6 +45,24 @@ class UserRoleResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PasswordResetRequest(BaseModel):
+    login: str
+
+class PasswordResetTokenVerify(BaseModel):
+    token: str 
+
+class PasswordResetUpdate(BaseModel):
+    token: str
+    new_password: str 
+
+class PasswordResetTokenResponse(BaseModel):
+    id: int
+    user_id: int
+    token: str
+    expires_at: datetime
+
+class Config:
+    from_attributes = True
 
 class OAuthAccountResponse(BaseModel):
     provider: str
