@@ -1,7 +1,12 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+from pydantic_settings import BaseSettings
+from typing import ClassVar
 
+load_dotenv()
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -15,7 +20,7 @@ class UserUpdate(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    login: str
     password: str
 
 
@@ -27,7 +32,7 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RoleBase(BaseModel):
@@ -38,7 +43,7 @@ class UserRoleResponse(BaseModel):
     role: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class OAuthAccountResponse(BaseModel):
@@ -49,7 +54,23 @@ class OAuthAccountResponse(BaseModel):
     expires_at: Optional[datetime]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class Settings(BaseSettings):
+    MAIL_USERNAME: str 
+    MAIL_PASSWORD: str
+    MAIL_FROM: str
+    MAIL_PORT: int
+    MAIL_SERVER: str
+    MAIL_TLS: bool
+    MAIL_SSL: bool
+    TEMPLATE_FOLDER: str = "./app/templates"
+
+    class MailConfig:
+        env_file = ".env"
+
+settings = Settings()
+
 
 
 class PasswordResetTokenCreate(BaseModel):
@@ -65,4 +86,6 @@ class PasswordResetTokenResponse(BaseModel):
     expires_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+        
