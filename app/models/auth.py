@@ -1,10 +1,8 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from dotenv import load_dotenv
-import os
 from pydantic_settings import BaseSettings
-from typing import ClassVar
 
 load_dotenv()
 
@@ -31,29 +29,32 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleBase(BaseModel):
     role: str
 
+
 class UserRoleResponse(BaseModel):
     user_id: int
     role: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PasswordResetRequest(BaseModel):
     login: str
 
+
 class PasswordResetTokenVerify(BaseModel):
     token: str 
+
 
 class PasswordResetUpdate(BaseModel):
     token: str
     new_password: str 
+
 
 class PasswordResetTokenResponse(BaseModel):
     id: int
@@ -61,8 +62,8 @@ class PasswordResetTokenResponse(BaseModel):
     token: str
     expires_at: datetime
 
-class Config:
-    from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class OAuthAccountResponse(BaseModel):
     provider: str
@@ -71,10 +72,11 @@ class OAuthAccountResponse(BaseModel):
     refresh_token: Optional[str]
     expires_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(extra='allow')  
     MAIL_USERNAME: str 
     MAIL_PASSWORD: str
     MAIL_FROM: str
@@ -84,18 +86,24 @@ class Settings(BaseSettings):
     MAIL_SSL: bool
     TEMPLATE_FOLDER: str = "./app/templates"
 
-    class MailConfig:
-        env_file = ".env"
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str 
 
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str
+
+    
 settings = Settings()
-
-
 
 class PasswordResetTokenCreate(BaseModel):
     email: EmailStr  
 
+
 class PasswordResetTokenVerify(BaseModel):
     token: str 
+
 
 class PasswordResetTokenResponse(BaseModel):
     id: int
@@ -103,7 +111,4 @@ class PasswordResetTokenResponse(BaseModel):
     token: str
     expires_at: datetime
 
-    class Config:
-        from_attributes = True
-
-        
+    model_config = ConfigDict(from_attributes=True)
