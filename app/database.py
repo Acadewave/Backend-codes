@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 
-load_dotenv()
+load_dotenv(".env.production")
 
 ENVIRONMENT = os.getenv("ENVIRONMENT")
 
