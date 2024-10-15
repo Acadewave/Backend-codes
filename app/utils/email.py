@@ -56,3 +56,5 @@ async def send_password_reset_email(email: str, reset_link: str, request: Reques
     except Exception as e:
         logger.error(f"Error sending password reset email to {email}: {str(e)}")
         raise EmailSendError(f"Failed to send password reset email to {email}: {str(e)}")
+
+

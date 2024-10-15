@@ -56,7 +56,7 @@ def create_access_token(email: str) -> str:
 def create_verification_token(email: str) -> str:
     return create_token({"sub": email}, token_type="verification")
 
-def creat_password_reset_token(email: str) -> str:
+def create_password_reset_token(email: str) -> str:
     return create_token({"sub: email"}, token_type="password_reset")
 
 def get_db():
@@ -85,3 +85,11 @@ def role_required(role: str):
             raise HTTPException(status_code=403, detail="Not enough privileges")
         return user
     return role_dependency
+
+def create_reset_token(email: str) -> str:
+    return create_token({"sub": email}, token_type="password_reset")
+
+def get_user_by_email(db: Session, email: str):
+    user = db.query(User).filter(User.email == email).first()
+    return user
+  
