@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 from ..schemas.auth import User
 from ..models.auth import UserCreate, UserResponse, PasswordResetRequest, PasswordResetUpdate
 from ..database import get_db
-from ..utils.jwt import create_access_token, create_verification_token, verify_token, role_required, create_password_reset_token, get_user_by_email, reset_token
+from ..utils.jwt import create_access_token, create_verification_token, verify_token, role_required, create_reset_token, get_user_by_email
 from fastapi.security import OAuth2PasswordRequestForm
 from ..models.auth import UserLogin, settings
 from fastapi.security import OAuth2PasswordBearer
@@ -162,7 +162,7 @@ async def password_reset_request(data: PasswordResetRequest, request: Request, d
     base_url = "https://backend-codes-l8uf.onrender.com"
     
 
-    reset_link = f"{base_url}/reset-password?token={reset_token}"
+    reset_link = f"{base_url}/reset-password?token={create_reset_token}"
 
     await send_password_reset_email(user.email, reset_link, request)
     
