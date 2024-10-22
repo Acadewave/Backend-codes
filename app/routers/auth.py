@@ -81,7 +81,7 @@ async def register(user: UserCreate, request: Request, db: Session = Depends(get
 
 @router.get("/auth/login-google")
 async def login_google(request: Request):
-    redirect_uri = request.url_for('auth_google_callback')  # The URL to redirect after successful login
+    redirect_uri = request.url_for('auth_google_callback')  
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
